@@ -1,11 +1,7 @@
+pip --upgrade pip
 streamlit
 pandas
 requests
 openpyxl
-io
-os
-time
-streamlit-components
-random
-base64
 json
+base64
