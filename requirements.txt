@@ -1,4 +1,3 @@
-pip --upgrade pip
 streamlit
 pandas
 requests
