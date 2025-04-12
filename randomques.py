@@ -28,7 +28,7 @@ document.addEventListener('selectstart', (event) => event.preventDefault());
 components.html(DISABLE_JS, height=0)
 
 # ✅ GitHub Quiz Data Source
-GITHUB_REPO = "vinay223344"+"/sai" #st.secrets["github"]["username"]
+GITHUB_REPO = st.secrets["github"]["username"]+"/sai" #st.secrets["github"]["username"]
 GITHUB_FILE_PATH = "quiz_data.xlsx"
 GITHUB_TOKEN = st.secrets["api"]["key"]
 #for results
@@ -283,10 +283,10 @@ def main():
                 append_score_to_github(st.session_state.participant1,st.session_state.participant2, st.session_state.r1,st.session_state.r2,st.session_state.phone, st.session_state.email, st.session_state.score)
                 st.rerun()
         else:
-            st.write("✅ **Thank you for participating!** Your responses have been recorded.")
+            st.write("✅ **Your responses have been recorded.** ")
 
     if st.session_state.quiz_closed:
-        st.write("✅ **Thank you for participating!** Your responses have been recorded.")
+        st.write("🙏**Thank you for participating!**")
         st.stop()
 
     time.sleep(1)
