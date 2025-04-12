@@ -28,7 +28,7 @@ document.addEventListener('selectstart', (event) => event.preventDefault());
 components.html(DISABLE_JS, height=0)
 
 # ✅ GitHub Quiz Data Source
-GITHUB_REPO = st.secrets["github"]["username"]+"/sai"
+GITHUB_REPO = "vinay223344"+"/sai" #st.secrets["github"]["username"]
 GITHUB_FILE_PATH = "quiz_data.xlsx"
 GITHUB_TOKEN = st.secrets["api"]["key"]
 #for results
@@ -77,9 +77,21 @@ def fetch_quiz_data():
         return None
 
 
+def has_already_attempted(r1, r2):
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+
+    response = requests.get(GITHUB_API_URL, headers=headers)
+    if response.status_code == 200:
+        file_data = response.json()
+        content = base64.b64decode(file_data["content"])  
+        results_df = pd.read_excel(io.BytesIO(content))
+
+        if r1 in results_df["Roll-1"].astype(str).values or r2 in results_df["Roll-2"].astype(str).values or r1 in results_df["Roll-2"].astype(str).values or r1 in results_df["Roll-2"].astype(str).values:
+            return True  # Quiz already attempted
+    return False
 
 # ✅ Function to Append Data & Upload Back to GitHub
-def append_score_to_github(participant1, participant2, phone, email, score):
+def append_score_to_github(participant1, participant2, r1,r2,phone, email, score):
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
@@ -94,12 +106,12 @@ def append_score_to_github(participant1, participant2, phone, email, score):
         existing_df = pd.read_excel(io.BytesIO(content))
         sha = file_data["sha"]  # Required for updating file
     else:
-        existing_df = pd.DataFrame(columns=["Participant 1", "Participant 2", "Phone", "Email", "Score"])
+        existing_df = pd.DataFrame(columns=["Participant 1", "Participant 2", "Roll-1","Roll-2","Phone", "Email", "Score"])
         sha = None  # New file creation
 
     # 2️⃣ Append New Data
-    new_data = pd.DataFrame([[participant1, participant2, phone, email, score]],
-                            columns=["Participant 1", "Participant 2", "Phone", "Email", "Score"])
+    new_data = pd.DataFrame([[participant1, participant2, (r1.upper()).strip(),(r2.upper()).strip(),phone, email, score]],
+                            columns=["Participant 1", "Participant 2", "Roll-1","Roll-2","Phone", "Email", "Score"])
     updated_df = pd.concat([existing_df, new_data], ignore_index=True)
 
     # 3️⃣ Convert Data to Byte Stream
@@ -127,22 +139,22 @@ def append_score_to_github(participant1, participant2, phone, email, score):
         return False
 
 # ✅ Save Participant Data & Score to Excel
-def save_score_to_excel(participant1, participant2, phone, email, score):
-    try:
-        if os.path.exists(LOCAL_EXCEL_PATH):
-            existing_data = pd.read_excel(LOCAL_EXCEL_PATH)
-        else:
-            existing_data = pd.DataFrame(columns=["Participant 1", "Participant 2", "Phone", "Email", "Score"])
-        
-        new_data = pd.DataFrame([[participant1, participant2, phone, email, score]], 
-                                columns=["Participant 1", "Participant 2", "Phone", "Email", "Score"])
-        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-        
-        updated_data.to_excel(LOCAL_EXCEL_PATH, index=False)
-        return True
-    except Exception as e:
-        st.error(f"❌ Error saving the score: {e}")
-        return False
+##def save_score_to_excel(participant1, participant2, phone, email, score):
+##    try:
+##        if os.path.exists(LOCAL_EXCEL_PATH):
+##            existing_data = pd.read_excel(LOCAL_EXCEL_PATH)
+##        else:
+##            existing_data = pd.DataFrame(columns=["Participant 1", "Participant 2", "Phone", "Email", "Score"])
+##        
+##        new_data = pd.DataFrame([[participant1, participant2, phone, email, score]], 
+##                                columns=["Participant 1", "Participant 2", "Phone", "Email", "Score"])
+##        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+##        
+##        updated_data.to_excel(LOCAL_EXCEL_PATH, index=False)
+##        return True
+##    except Exception as e:
+##        st.error(f"❌ Error saving the score: {e}")
+##        return False
 
 # ✅ Calculate Score
 def evaluate_quiz(user_answers, correct_answers):
@@ -177,13 +189,19 @@ def main():
         with st.form("participant_form"):
             participant1 = st.text_input("👤 Participant 1 Name")
             participant2 = st.text_input("👤 Participant 2 Name")
-            phone = st.text_input("📞 Phone Number")
+            r1=st.text_input("Enter Participant-1 Roll Number")
+            r2=st.text_input("Enter Participant-2 Roll Number")
+            phone = st.text_input("📞 Enter Phone Number")
             email = st.text_input("✉️ Email ID")
             start_button = st.form_submit_button("Start Quiz")
 
         if start_button:
-            if not all([participant1, participant2, phone, email]):
+            if not all([participant1, participant2,r1,r2, phone, email]):
                 st.warning("⚠️ Please fill in all fields to start the quiz.")
+                return
+            
+            if has_already_attempted(r1, r2):
+                st.error("❌ You have already attempted the quiz. You have no access to write again")
                 return
 
             # Store participant details
@@ -191,6 +209,8 @@ def main():
             st.session_state.participant2 = participant2
             st.session_state.phone = phone
             st.session_state.email = email
+            st.session_state.r1=r1
+            st.session_state.r2=r2
             st.session_state.start_time = time.time()
             st.session_state.quiz_started = True
             st.rerun()
@@ -203,6 +223,8 @@ def main():
     st.write("### Participant Details")
     st.text_input("👤 Participant 1", value=st.session_state.participant1, disabled=True)
     st.text_input("👤 Participant 2", value=st.session_state.participant2, disabled=True)
+    st.text_input("Regd.No-1", value=st.session_state.r1, disabled=True)
+    st.text_input("Regd.No-2", value=st.session_state.r2, disabled=True)
     st.text_input("📞 Phone Number", value=st.session_state.phone, disabled=True)
     st.text_input("✉️ Email ID", value=st.session_state.email, disabled=True)
 
@@ -211,7 +233,7 @@ def main():
     remaining_time = max(QUIZ_DURATION - int(elapsed_time), 0)
 
     timer_placeholder = st.sidebar.empty()
-    timer_placeholder.markdown(f"⏳ **Time Left: {remaining_time} seconds**")
+    timer_placeholder.markdown(f"<h1>⏳ Time Left: {remaining_time} seconds</h1>",unsafe_allow_html=True)
 
     # ✅ Auto-Submit if Time Runs Out
     if remaining_time == 0 and not st.session_state.submitted:
@@ -219,7 +241,7 @@ def main():
         st.session_state.quiz_closed = True
         if "correct_answers" in st.session_state:
             st.session_state.score = evaluate_quiz(st.session_state.user_answers, st.session_state.correct_answers)
-            append_score_to_github(st.session_state.participant1,st.session_state.participant2, st.session_state.phone, st.session_state.email, st.session_state.score)
+            append_score_to_github(st.session_state.participant1,st.session_state.participant2,st.session_state.r1,st.session_state.r2, st.session_state.phone, st.session_state.email, st.session_state.score)
         st.rerun()
 
     # ✅ Fetch Quiz Data
@@ -251,14 +273,14 @@ def main():
         if not st.session_state.submitted:
             for question, options in questions.items():
                     st.markdown(f'<hr><p style="margin-bottom: 5px; font-weight: bold;">{question}</p>', unsafe_allow_html=True)
-                    st.session_state.user_answers[question] = st.radio("", options, key=question)
+                    st.session_state.user_answers[question] = st.radio("", options, key=question,index=None)
 
             
             if st.button("Submit"):
                 st.session_state.submitted = True
                 st.session_state.quiz_closed = True
                 st.session_state.score = evaluate_quiz(st.session_state.user_answers, st.session_state.correct_answers)
-                append_score_to_github(st.session_state.participant1,st.session_state.participant2, st.session_state.phone, st.session_state.email, st.session_state.score)
+                append_score_to_github(st.session_state.participant1,st.session_state.participant2, st.session_state.r1,st.session_state.r2,st.session_state.phone, st.session_state.email, st.session_state.score)
                 st.rerun()
         else:
             st.write("✅ **Thank you for participating!** Your responses have been recorded.")
